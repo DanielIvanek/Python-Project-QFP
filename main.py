@@ -2,6 +2,7 @@ from monte_carlo_simulation import run_monte_carlo
 from backtesting import run_backtesting
 import yfinance as yf
 from markowitz_optimization import run_markowitz_optimization
+from mvp import run_mvp
 
 
 
@@ -32,4 +33,6 @@ annualized_return, annualized_volatility, sharpe_ratio = run_backtesting(
 print("\nMarkowitz Portfolio Optimization:")
 run_markowitz_optimization(tickers)
 
-
+# Minimum Variance Portfolio (MVP)
+print("\nMinimum Variance Portfolio (MVP):")
+run_mvp(tickers)
