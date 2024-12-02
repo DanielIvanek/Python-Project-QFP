@@ -8,7 +8,7 @@ from mvp import run_mvp
 
 # Definice portfolia
 tickers = ['CVS', 'BABA', 'EVO.ST', 'TUI1.DE']
-weights = [0.11, 0.33, 0.50, 0.06]
+weights = [0.25 , 0.25, 0.25, 0.25]
 
 # Stažení dat pro Monte Carlo simulaci
 data = yf.download(tickers, start='2015-01-01', end='2023-01-01')['Adj Close']
