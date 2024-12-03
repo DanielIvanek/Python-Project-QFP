@@ -4,16 +4,14 @@ import yfinance as yf
 from markowitz_optimization import run_markowitz_optimization
 from mvp import run_mvp
 
-
-
-# Definice portfolia
+# Definition of portfolio
 tickers = ['CVS', 'BABA', 'EVO.ST', 'TUI1.DE']
 weights = [0.25 , 0.25, 0.25, 0.25]
 
-# Stažení dat pro Monte Carlo simulaci
+# Montecarlo data download
 data = yf.download(tickers, start='2015-01-01', end='2023-01-01')['Adj Close']
 
-# Monte Carlo Simulace
+# Monte Carlo simulation
 print("Monte Carlo Simulation:")
 mean_ending_value, median_ending_value, fifth_percentile, ninety_fifth_percentile = run_monte_carlo(
     data, weights, num_simulations=1000, num_days=252, initial_portfolio_value=100000
