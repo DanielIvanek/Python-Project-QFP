@@ -13,7 +13,6 @@ def run_monte_carlo(data, weights, num_simulations=1000, num_days=252, initial_p
         simulated_portfolio_returns = np.dot(simulated_daily_returns, weights)
         simulated_portfolio_values[:, i] = initial_portfolio_value * (1 + simulated_portfolio_returns).cumprod()
 
-    # Simulation results draw
     plt.figure(figsize=(12, 6))
     for i in range(num_simulations):
         plt.plot(simulated_portfolio_values[:, i], color='blue', alpha=0.05)

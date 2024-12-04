@@ -4,7 +4,7 @@ import yfinance as yf
 from markowitz_optimization import run_markowitz_optimization
 from mvp import run_mvp
 
-# Definition of portfolio
+
 tickers = ['CVS', 'BABA', 'EVO.ST', 'TUI1.DE']
 weights = [0.25 , 0.25, 0.25, 0.25]
 
