@@ -1,64 +1,76 @@
+from scipy.optimize import minimize
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-def run_backtesting(tickers, weights, benchmark_ticker='^GSPC', global_etf_ticker='ACWI', start='2015-01-01', end='2023-01-01'):
+
+def rolling_window_backtesting(tickers, window_size=3, test_period=1, start='2015-01-01', end='2023-01-01'):
     data = yf.download(tickers, start=start, end=end)['Adj Close']
-    benchmark_data = yf.download(benchmark_ticker, start=start, end=end)['Adj Close']
-    global_etf_data = yf.download(global_etf_ticker, start=start, end=end)['Adj Close']
+    daily_returns = data.pct_change(fill_method=None).dropna()
 
-    daily_returns = data.pct_change().dropna()
-    benchmark_returns = benchmark_data.pct_change().dropna()
-    global_etf_returns = global_etf_data.pct_change().dropna()
+    cumulative_returns_out_of_sample = []
+    cumulative_returns_in_sample = []
+    timestamps = []
 
-    portfolio_returns = (daily_returns * weights).sum(axis=1)
+    for i in range(0, len(daily_returns) - (window_size + test_period) * 252, 252):
+        # Rozdělení na trénovací a testovací část
+        train_data = daily_returns.iloc[i:i + window_size * 252]
+        test_data = daily_returns.iloc[i + window_size * 252:i + (window_size + test_period) * 252]
 
-    cumulative_returns_portfolio = (1 + portfolio_returns).cumprod()
-    cumulative_returns_benchmark = (1 + benchmark_returns).cumprod()
-    cumulative_returns_global_etf = (1 + global_etf_returns).cumprod()
+        # Odhad parametrů na trénovacím období
+        mean_returns = train_data.mean()
+        cov_matrix = train_data.cov()
 
-    if isinstance(cumulative_returns_benchmark, pd.DataFrame):
-        cumulative_returns_benchmark = cumulative_returns_benchmark.squeeze()
-    if isinstance(cumulative_returns_global_etf, pd.DataFrame):
-        cumulative_returns_global_etf = cumulative_returns_global_etf.squeeze()
+        # Optimalizace portfolia na základě trénovacích dat
+        num_assets = len(tickers)
+        initial_weights = [1 / num_assets] * num_assets
+        bounds = tuple((0.0, 1.0) for _ in range(num_assets))
+        constraints = {'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1}
 
-    annualized_return = cumulative_returns_portfolio.iloc[-1]**(1 / (len(cumulative_returns_portfolio) / 252)) - 1
-    annualized_volatility = portfolio_returns.std() * np.sqrt(252)
-    sharpe_ratio = annualized_return / annualized_volatility
+        def portfolio_volatility(weights, cov_matrix):
+            return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
 
-    annualized_return_benchmark = cumulative_returns_benchmark.iloc[-1]**(1 / (len(cumulative_returns_benchmark) / 252)) - 1
-    annualized_volatility_benchmark = benchmark_returns.std().item() * np.sqrt(252)
-    sharpe_ratio_benchmark = annualized_return_benchmark / annualized_volatility_benchmark
+        def objective_function(weights, mean_returns, cov_matrix):
+            return -np.sum(mean_returns * weights) / portfolio_volatility(weights, cov_matrix)
 
-    annualized_return_global_etf = cumulative_returns_global_etf.iloc[-1]**(1 / (len(cumulative_returns_global_etf) / 252)) - 1
-    annualized_volatility_global_etf = global_etf_returns.std().item() * np.sqrt(252)  # Použijeme `.item()` pro získání float hodnoty
-    sharpe_ratio_global_etf = annualized_return_global_etf / annualized_volatility_global_etf
+        result = minimize(
+            objective_function,
+            initial_weights,
+            args=(mean_returns, cov_matrix),
+            method='SLSQP',
+            bounds=bounds,
+            constraints=constraints
+        )
 
-    print("Portfolio Performance:")
-    print(f"Annualized Return: {annualized_return:.2%}")
-    print(f"Annualized Volatility: {annualized_volatility:.2%}")
-    print(f"Sharpe Ratio: {sharpe_ratio:.2f}\n")
+        optimal_weights = result.x
 
-    print("Benchmark Performance (S&P 500):")
-    print(f"Annualized Return: {annualized_return_benchmark:.2%}")
-    print(f"Annualized Volatility: {annualized_volatility_benchmark:.2%}")
-    print(f"Sharpe Ratio: {sharpe_ratio_benchmark:.2f}\n")
+        # Výpočty na testovacích datech
+        portfolio_returns_test = test_data.dot(optimal_weights)
+        cumulative_return_test = (1 + portfolio_returns_test).cumprod()
 
-    print("Global ETF Performance (ACWI):")
-    print(f"Annualized Return: {annualized_return_global_etf:.2%}")
-    print(f"Annualized Volatility: {annualized_volatility_global_etf:.2%}")
-    print(f"Sharpe Ratio: {sharpe_ratio_global_etf:.2f}\n")
+        portfolio_returns_train = train_data.dot(optimal_weights)
+        cumulative_return_train = (1 + portfolio_returns_train).cumprod()
 
+        cumulative_returns_out_of_sample.append(cumulative_return_test.iloc[-1])
+        cumulative_returns_in_sample.append(cumulative_return_train.iloc[-1])
+        timestamps.append(test_data.index[-1])
+
+    # Výstupní metriky
+    avg_out_of_sample_return = np.mean(cumulative_returns_out_of_sample)
+    avg_in_sample_return = np.mean(cumulative_returns_in_sample)
+
+    print("Rolling Window Backtesting Results:")
+    print(f"Average Out-of-Sample Return: {avg_out_of_sample_return:.2%}")
+    print(f"Average In-Sample Return: {avg_in_sample_return:.2%}")
+
+    # Grafické zobrazení kumulativních výnosů
     plt.figure(figsize=(12, 6))
-    plt.plot(cumulative_returns_portfolio, label='Portfolio', color='blue')
-    plt.plot(cumulative_returns_benchmark, label='S&P 500', color='orange', linestyle='--')
-    plt.plot(cumulative_returns_global_etf, label='Global ETF (ACWI)', color='green', linestyle=':')
-    plt.title('Cumulative Returns: Portfolio vs Benchmarks')
+    plt.plot(timestamps, cumulative_returns_out_of_sample, label='Out-of-Sample Returns', marker='o')
+    plt.plot(timestamps, cumulative_returns_in_sample, label='In-Sample Returns', marker='x')
     plt.xlabel('Date')
-    plt.ylabel('Cumulative Returns')
+    plt.ylabel('Cumulative Return')
     plt.legend()
+    plt.title('Out-of-Sample vs In-Sample Performance (Rolling Window)')
     plt.grid()
     plt.show()
-
-    return annualized_return, annualized_volatility, sharpe_ratio
