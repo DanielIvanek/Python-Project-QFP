@@ -16,7 +16,6 @@ class Backtester:
     def run_backtest(self, tickers, start_date, end_date,
                      train_years=3, test_years=1,
                      asset_constraints=None, lambda_reg=0.1):
-        """Provede rolling window backtest s pokročilým reportováním"""
 
         price_data = self.optimizer.download_data(tickers, start_date, end_date)
         returns = self.optimizer.calculate_returns(price_data)
@@ -48,7 +47,6 @@ class Backtester:
                 train_metrics = self.optimizer.analyze_portfolio(weights, train_returns, risk_free_rate)
                 test_metrics = self.optimizer.analyze_portfolio(weights, test_returns, risk_free_rate)
 
-                # Ukládáme váhy jako čísla místo procent
                 result = {
                     'Start Date': current_date.strftime('%Y-%m-%d'),
                     'End Date': (current_date + timedelta(days=test_years * 365)).strftime('%Y-%m-%d'),
@@ -69,7 +67,6 @@ class Backtester:
         return pd.DataFrame(results)
 
     def plot_cumulative_returns(self, results_df, initial_investment=100000):
-        """Vykreslí vývoj portfolia od počáteční investice"""
 
         # Výpočet kumulativních výnosů
         returns = results_df['Test Return'] / 252  # Denní výnosy
@@ -135,7 +132,6 @@ class Backtester:
         plt.show()
 
     def plot_drawdown(self, results_df):
-        """Vykreslí maximální drawdown pro každé testovací období"""
 
         weight_cols = [col for col in results_df.columns if col not in [
             'Start Date', 'End Date', 'Train Sharpe', 'Test Sharpe',
@@ -151,7 +147,6 @@ class Backtester:
                     row['End Date']
                 )
             )
-            # Zajištění kompatibility rozměrů
             valid_tickers = [ticker for ticker in weight_cols if ticker in returns.columns]
             returns = returns[valid_tickers]
             weights = row[valid_tickers]
@@ -171,19 +166,16 @@ class Backtester:
         plt.show()
 
     def generate_report(self, results_df):
-        """Generuje komplexní report s vizualizací"""
 
         if results_df.empty:
             print("Žádné výsledky k reportování")
             return
 
-        # Příprava sloupců s vahami
         weight_cols = [col for col in results_df.columns if col not in [
             'Start Date', 'End Date', 'Train Sharpe', 'Test Sharpe',
             'Test Return', 'Test Volatility', 'Test VaR 95%'
         ]]
 
-        # Převod na procenta pro zobrazení
         display_df = results_df.copy()
         for col in weight_cols:
             display_df[col] = display_df[col].apply(lambda x: f"{x:.2%}")
@@ -193,7 +185,6 @@ class Backtester:
         print("=" * 50)
         print(tabulate(display_df, headers='keys', tablefmt='pretty', floatfmt=".4f"))
 
-        # Statistické shrnutí
         print("\n" + "=" * 50)
         print("Statistické shrnutí:")
         print("=" * 50)
@@ -229,7 +220,6 @@ class Backtester:
         self.plot_drawdown(results_df)
 
     def save_results(self, results_df, filename):
-        """Uloží výsledky do CSV"""
 
         results_df.to_csv(filename, index=False)
         print(f"\nVýsledky uloženy do {filename}")

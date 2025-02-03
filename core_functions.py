@@ -15,19 +15,16 @@ class PortfolioOptimizer:
         self.risk_free_rate = 0.02  # Fallback value
 
     def download_data(self, tickers, start_date, end_date):
-        """Stáhne data pro multi-asset portfolio s kontrolou kvality dat"""
         data = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
         data = data.dropna(axis=1, how='all')  # Odstraní sloupce bez dat
         return data
 
     def calculate_returns(self, price_data, freq='D'):
-        """Vypočítá logaritmické výnosy s možností různých frekvencí"""
         if freq != 'D':
             price_data = price_data.resample(freq).last()
         return np.log(price_data / price_data.shift(1)).dropna()
 
     def get_risk_free_rate(self, target_date):
-        """Získá dynamickou bezrizikovou sazbu s historickou perspektivou"""
         try:
             series = self.fred.get_series('GS10', target_date.strftime('%Y-%m-%d'))
             if series.empty:
@@ -40,12 +37,7 @@ class PortfolioOptimizer:
 
     def optimize_portfolio(self, returns, risk_free_rate=0.02,
                            asset_constraints=None, lambda_reg=0.1):
-        """
-        Pokročilá optimalizace portfolia s:
-        - Sektorovými omezeními
-        - Kombinovanou L1/L2 regularizací
-        - Dynamickými hranicemi pro třídy aktiv
-        """
+
         tickers = returns.columns.tolist()
         cov_matrix = returns.cov() * 252
 
@@ -114,20 +106,17 @@ class PortfolioOptimizer:
         return result.x
 
     def analyze_portfolio(self, weights, returns, risk_free_rate):
-        """Komplexní analýza portfolia s rizikovými metrikami"""
         metrics = {}
         metrics['Return'] = np.sum(returns.mean() * weights) * 252
         metrics['Volatility'] = np.sqrt(weights.T @ returns.cov() * 252 @ weights)
         metrics['Sharpe'] = (metrics['Return'] - risk_free_rate) / metrics['Volatility']
 
-        # Výpočet Value at Risk (95% úroveň důvěryhodnosti)
         portfolio_returns = returns @ weights
         metrics['VaR_95'] = np.percentile(portfolio_returns, 5)
 
         return metrics
 
     def plot_correlation_matrix(self, returns):
-        """Vykreslí heatmapu korelací"""
         plt.figure(figsize=(12, 8))
         sns.heatmap(returns.corr(), annot=True, cmap='coolwarm', center=0)
         plt.title('Korelační matice aktiv')
@@ -135,7 +124,6 @@ class PortfolioOptimizer:
 
 
 if __name__ == "__main__":
-    # Příklad použití
     optimizer = PortfolioOptimizer(fred_api_key='73bf9caaa3bc8dcde51bd1d08eaf83d9')
     #tickers = ['SPY', 'QQQ', 'VTI', 'BND', 'GLD', 'XLK']
     tickers = ['SPY', 'QQQ', 'VTI', 'BND', 'GLD', 'XLK', 'BTC-USD']
